@@ -6,7 +6,9 @@ import time
 import logging
 import warnings
 import sys
+from copy import deepcopy
 from inspect import getmembers
+from inspect import isclass
 from typing import Any
 from typing import Dict
 from typing import Generic
@@ -271,11 +273,15 @@ class MetaModel(AttributeContainerMeta):
         """
         cls._indexes = {}
         for name, index in getmembers(cls, lambda o: isinstance(o, Index)):
-            if not hasattr(index.Meta, "model"):
-                index.Meta.model = cls
+            # Create a copy of the index that can store a local instance of index Meta class.
+            # Use the local instance of the Meta class to store a reference to the containing Model class.
+            index = deepcopy(index)
+            index.Meta = index.Meta() if isclass(index.Meta) else deepcopy(index.Meta)
+            index.Meta.model = cls
             if not hasattr(index.Meta, "index_name"):
                 index.Meta.index_name = name
             cls._indexes[index.Meta.index_name] = index
+            setattr(cls, name, index)
 
 
 class Model(AttributeContainer, metaclass=MetaModel):
